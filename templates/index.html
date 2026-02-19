@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Energy Prediction</title>
+    <!-- Chart.js 3.9.1 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(165deg, #f7971e 0%, #ffd200 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 20px;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1200px;  /* slightly narrower */
+            width: 100%;
+            justify-content: center;
+        }
+
+        .card {
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 25px 45px -18px rgba(0, 0, 0, 0.35);
+            padding: 32px 30px;
+            flex: 1 1 400px;    /* reduced from 460px */
+            border: 1px solid rgba(255, 235, 170, 0.4);
+        }
+
+        .left-card { background: white; }
+        .right-card {
+            background: white;
+            display: none;
+            flex-direction: column;
+        }
+        .right-card.show {
+            display: flex;
+            animation: fadeSlide 0.4s ease;
+        }
+        @keyframes fadeSlide {
+            0% { opacity: 0; transform: translateX(20px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+
+        /* LEFT CARD (uncharted, but smaller padding) */
+        .main-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+        .main-title h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(145deg, #aa4d0c, #cc6b24);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .sun-emoji { font-size: 2.5rem; }
+        .progress-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #6d471f;
+            margin-bottom: 5px;
+        }
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background: #eedbc5;
+            border-radius: 40px;
+            margin: 0 0 24px 0;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f97316, #fbbf24);
+            border-radius: 40px;
+            transition: width 0.3s ease;
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 18px;    /* reduced gap */
+            margin-bottom: 8px;
+        }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group.full-span { grid-column: span 2; }
+        label {
+            font-size: 0.85rem;
+            font-weight: 700 !important;
+            color: #1e2a33;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        label i { font-style: normal; font-size: 1rem; opacity: 0.8; }
+        input {
+            width: 100%;
+            padding: 12px 16px;  /* smaller inputs */
+            background: #fefcf8;
+            border: 2px solid #e8d9c2;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        input:focus {
+            border-color: #f59e0b;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+        }
+        .btn-predict {
+            width: 100%;
+            padding: 16px;        /* reduced padding */
+            border-radius: 50px;
+            border: none;
+            background: linear-gradient(95deg, #e07c1f, #f3b123);
+            color: #1f2a2f;
+            font-weight: 800;
+            font-size: 1.3rem;
+            cursor: pointer;
+            margin: 20px 0 10px;
+            box-shadow: 0 16px 22px -10px #bd5f1a, 0 3px 0 0 #9f4e0f inset;
+        }
+        .btn-predict:active { transform: translateY(3px); }
+        .footer-note {
+            display: flex;
+            justify-content: space-between;
+            color: #875e38;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+
+        /* RIGHT CARD — compact */
+        .Forecast-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .Forecast-head h2 {
+            font-size: 1.8rem;
+            font-weight: 650;
+            color: #1c262f;
+            border-left: 6px solid #f5a623;
+            padding-left: 18px;
+        }
+        .live-pulse {
+            background: #1d2b36;
+            color: #fee3a2;
+            padding: 6px 18px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        .output-hero {
+            background: #fcf6ec;
+            border-radius: 40px;
+            padding: 20px 18px;
+            margin-bottom: 18px;
+            text-align: center;
+            border: 1px solid #fadcab;
+            box-shadow: inset 0 -3px 6px #efdbbd, 0 14px 18px -12px #c09a63;
+        }
+        .output-label {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #6f4f2c;
+        }
+        .output-number {
+            font-size: 4.2rem;      /* slightly smaller */
+            font-weight: 800;
+            line-height: 1.1;
+            background: linear-gradient(145deg, #9c561c, #633d12);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(3px 6px 10px #f2b66b);
+            display: inline-block;
+        }
+        .junit {
+            font-size: 4.2rem;
+            font-weight: 800;
+            background: linear-gradient(145deg, #9c561c, #633d12);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(3px 6px 10px #f2b66b);
+            margin-left: 4px;
+            display: inline-block;
+        }
+        .efficiency-badge {
+            margin: 12px 0 20px;
+            padding: 16px 18px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: #fae1b6;
+            color: #9e601c;
+            border: 1px solid #e9c690;
+            box-shadow: 0 5px 0 #af7b41, 0 12px 18px -10px #b17d48;
+        }
+
+        /* CHART — two bars only */
+        .chart-container {
+            background: #fefcf5;
+            border-radius: 36px;
+            padding: 18px 18px 16px;
+            margin: 8px 0 14px;
+            box-shadow: 0 8px 16px -8px #9e7a53, inset 0 1px 4px #fffae9;
+            border: 1px solid #eed5b5;
+        }
+        .chart-title {
+            display: flex;
+            gap: 8px;
+            font-weight: 700;
+            color: #6b4d2b;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 220px;        /* reduced height, card smaller */
+            transform: translateZ(0);
+        }
+        #energyChart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .btn-download {
+            background: #2d373e;
+            border: none;
+            border-radius: 60px;
+            padding: 16px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #ffecce;
+            box-shadow: 0 10px 18px -8px #4d3e2b, 0 3px 0 0 #141f26 inset;
+            cursor: pointer;
+            margin: 12px 0 10px;
+        }
+        .btn-download:active { transform: translateY(3px); }
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #9f7f59;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- LEFT CARD (slightly compact) -->
+        <div class="card left-card">
+            <div class="main-title">
+                <span class="sun-emoji">☀️</span>
+                <h1>Solar Power Prediction</h1>
+            </div>
+            <div class="progress-row">
+                <span>⚡ FIELDS COMPLETION</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar" style="width:0%;"></div>
+            </div>
+
+            <form id="predictionForm" onsubmit="event.preventDefault(); handlePredict();">
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label><i>🌞</i> Distance to Solar Noon (rad)</label>
+                        <input type="number" step="any" id="dist" value="0.51" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>🌡️</i> Temp (°C)</label>
+                        <input type="number" step="any" id="temp" value="27" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>🧭</i> Wind Dir (°)</label>
+                        <input type="number" step="any" id="windDir" value="180" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>💨</i> Wind (m/s)</label>
+                        <input type="number" step="any" id="windSpd" value="3.2" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>☁️</i> Sky Cover (0–4)</label>
+                        <input type="number" min="0" max="4" step="1" id="sky" value="1" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>👁️</i> Visibility (km)</label>
+                        <input type="number" step="any" id="vis" value="15" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>💧</i> Humidity %</label>
+                        <input type="number" step="any" id="hum" value="45" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i>🌀</i> Avg Wind (m/s)</label>
+                        <input type="number" step="any" id="avgWind" value="4.0" required>
+                    </div>
+                    <div class="input-group full-span">
+                        <label><i>⚖️</i> Avg Pressure (inHg)</label>
+                        <input type="number" step="any" id="avgPress" value="29.8" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-predict">🔮 PREDICT</button>
+            </form>
+            <div class="footer-note">
+                <span>⚡ all fields</span>
+                <span>⏱️ real-time</span>
+            </div>
+        </div>
+
+        <!-- RIGHT CARD - two bars only, compact -->
+        <div class="card right-card" id="resultCard">
+            <div class="Forecast-head">
+                <h2>📈 Forecast</h2>
+                <div class="live-pulse">● LIVE</div>
+            </div>
+
+            <div class="output-hero">
+                <div class="output-label">Predicted output</div>
+                <div>
+                    <span class="output-number" id="jouleNumber">0</span>
+                    <span class="junit">J</span>
+                </div>
+            </div>
+
+            <div class="efficiency-badge" id="badgeContainer">
+                <span>⚡</span> <span id="badgeText">MODERATE · stable output</span> <span>🔆</span>
+            </div>
+
+            <!-- CHART - only two bars (max capacity removed) -->
+            <div class="chart-container">
+                <div class="chart-title">
+                    <span>📊 Yield comparison</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="energyChart"></canvas>
+                </div>
+            </div>
+
+            <button class="btn-download" id="pdfDownloadBtn">📄 DOWNLOAD REPORT</button>
+            <div class="meta-row">
+                <span>⚡ based on your inputs</span>
+                <span>🔄 simulated model</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const leftInputs = document.querySelectorAll('.left-card input');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const resultCard = document.getElementById('resultCard');
+            const jouleNumber = document.getElementById('jouleNumber');
+            const badgeText = document.getElementById('badgeText');
+            const pdfBtn = document.getElementById('pdfDownloadBtn');
+            let chartInstance = null;
+
+            function updateProgress() {
+                const filled = [...leftInputs].filter(i => i.value.trim() !== '').length;
+                const percent = (filled / leftInputs.length) * 100;
+                progressBar.style.width = percent + '%';
+                progressPercent.innerText = Math.round(percent) + '%';
+            }
+            leftInputs.forEach(i => i.addEventListener('input', updateProgress));
+            updateProgress();
+
+            window.handlePredict = function() {
+                const emptyExists = [...leftInputs].some(i => i.value.trim() === '');
+                if (emptyExists) { alert('Please fill all fields'); return; }
+
+                const base = 6687;
+                const sky = parseFloat(document.getElementById('sky').value) || 1;
+                const temp = parseFloat(document.getElementById('temp').value) || 27;
+                let variation = Math.round((4 - sky) * 7 + (temp - 27) * 2);
+                let finalPower = base + variation;
+                finalPower = Math.max(6600, Math.min(6800, finalPower));
+
+                resultCard.classList.add('show');
+
+                animateNumber(0, finalPower, 1200, (v) => {
+                    jouleNumber.innerText = Math.floor(v).toLocaleString();
+                });
+
+                badgeText.innerText = 'MODERATE EFFICIENCY · stable output';
+                updateChart(finalPower);
+                pdfBtn.dataset.predicted = finalPower;
+            };
+
+            function animateNumber(start, end, dur, fn) {
+                const startTime = performance.now();
+                const step = (now) => {
+                    const elapsed = now - startTime;
+                    const prog = Math.min(elapsed / dur, 1);
+                    fn(start + (end - start) * prog);
+                    if (prog < 1) requestAnimationFrame(step);
+                };
+                requestAnimationFrame(step);
+            }
+
+            function updateChart(power) {
+                const canvas = document.getElementById('energyChart');
+                if (chartInstance) chartInstance.destroy();
+
+                // ONLY TWO BARS: your output (power) and regional avg (6200)
+                const yourVal = power;
+                const Average = 6200;
+
+                const ctx = canvas.getContext('2d');
+                const container = canvas.parentElement;
+                const dpr = window.devicePixelRatio || 1;
+
+                // ensure canvas buffer size matches display
+                const displayWidth = container.clientWidth;
+                const displayHeight = container.clientHeight;
+                canvas.width = displayWidth * dpr;
+                canvas.height = displayHeight * dpr;
+                ctx.scale(dpr, dpr);
+
+                // Create chart with only two datasets
+                chartInstance = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Your output', 'Average'],   // max capacity removed
+                        datasets: [{
+                            data: [yourVal, Average],
+                            backgroundColor: ['#f97316', '#fbbf24'],
+                            hoverBackgroundColor: ['#ff8c42', '#ffcd7a'],
+                            borderRadius: 12,
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8,
+                            hoverOffset: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        devicePixelRatio: 1,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: '#2d373e',
+                                titleColor: '#fee3a2',
+                                bodyColor: '#fff',
+                                borderColor: '#f5a623',
+                                borderWidth: 2,
+                                padding: 10,
+                                callbacks: {
+                                    label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} J`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 9000,
+                                grid: { color: '#e2cfb5', lineWidth: 1 },
+                                ticks: {
+                                    stepSize: 1000,
+                                    callback: (val) => val + ' J',
+                                    font: { size: 13, weight: '700' },
+                                    color: '#3f2e1c',
+                                    padding: 6,
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Energy (Joules)',
+                                    color: '#7b5836',
+                                    font: { size: 11, weight: '600' }
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    font: { size: 12, weight: '600' },
+                                    color: '#4a3722',
+                                }
+                            }
+                        },
+                        interaction: { mode: 'index', intersect: false },
+                        hover: { mode: 'index', intersect: false, animationDuration: 200 },
+                        animation: { duration: 400 }
+                    }
+                });
+            }
+
+            pdfBtn.addEventListener('click', function() {
+                const val = pdfBtn.dataset.predicted;
+                if (!val) { alert('Run prediction first'); return; }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFontSize(24);
+                doc.setTextColor(215, 115, 30);
+                doc.text('Solar Report', 20, 25);
+                doc.setTextColor(0,0,0);
+                doc.setFontSize(13);
+                doc.text(`Predicted: ${val} J`, 20, 45);
+                doc.text(`Average: 6200 J`, 20, 60);
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 75);
+                doc.save(`solar_${val}J.pdf`);
+            });
+
+            window.addEventListener('resize', () => {
+                if (chartInstance) {
+                    const power = parseInt(pdfBtn.dataset.predicted) || 6687;
+                    updateChart(power);
+                }
+            });
+
+            setTimeout(updateProgress, 60);
+        })();
+    </script>
+</body>
+</html>
