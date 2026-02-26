@@ -1,4 +1,4 @@
-Solar Power Generation Prediction 🌞
+## Solar Power Generation Prediction 🌞
 
 📌 Project Overview
 This project predicts solar power generation using environmental and weather-related features. The goal was to build a regression model capable of accurately estimating power output based on factors such as temperature, wind speed, sky cover, and distance to solar noon.
